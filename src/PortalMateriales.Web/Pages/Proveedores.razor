@@ -1,0 +1,130 @@
+@page "/proveedores"
+@inject Api Api
+@inject Sesion Sesion
+@inject Avisos Avisos
+@inject NavigationManager Nav
+
+<PageTitle>Proveedores · Portal de Materiales</PageTitle>
+
+<EncabezadoPagina Titulo="Proveedores" Descripcion="Maestro de proveedores de materiales y sus contactos.">
+    <Acciones>
+        @if (Sesion.Es(Rol.Coordinador))
+        {
+            <button type="button" class="boton boton-primario" @onclick="AbrirNuevo"><Icono Nombre="mas" /> Nuevo proveedor</button>
+        }
+    </Acciones>
+</EncabezadoPagina>
+
+<div class="filtros">
+    <div class="chips" role="group" aria-label="Filtrar por estado">
+        <button type="button" class="chip" aria-pressed="@(_activo is null)" @onclick="() => _activo = null">Todos</button>
+        <button type="button" class="chip" aria-pressed="@(_activo == true)" @onclick="() => _activo = true">Activos</button>
+        <button type="button" class="chip" aria-pressed="@(_activo == false)" @onclick="() => _activo = false">Inactivos</button>
+    </div>
+    <label class="buscador">
+        <span class="solo-lector">Buscar</span>
+        <Icono Nombre="lupa" Tamano="16" />
+        <input type="search" placeholder="Buscar por nombre, RTN o correo" @bind="_busqueda" @bind:event="oninput" />
+    </label>
+</div>
+
+<MensajeError Texto="@_error" />
+
+@if (_lista is null)
+{
+    <Cargando />
+}
+else if (Filtrados.Count == 0)
+{
+    <div class="panel vacio">No hay proveedores que coincidan con el filtro.</div>
+}
+else
+{
+    <div class="tabla-contenedor solo-escritorio">
+        <table class="tabla">
+            <thead>
+                <tr><th scope="col">Nombre</th><th scope="col">Tipo</th><th scope="col">RTN</th><th scope="col">Moneda</th><th scope="col">Idioma</th><th scope="col">Correo</th><th scope="col">Estado</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Filtrados)
+                {
+                    <tr class="clic" @onclick='() => Nav.NavigateTo($"proveedores/{p.Id}")'>
+                        <td><a href="proveedores/@p.Id" @onclick:stopPropagation>@p.Nombre</a></td>
+                        <td><Insignia Variante="@(p.Tipo == TipoProveedor.Nacional ? "info" : "neutro")" IconoNombre="@(p.Tipo == TipoProveedor.Nacional ? "mapa" : "globo")">@p.Tipo</Insignia></td>
+                        <td class="mono">@(p.Rtn ?? "—")</td>
+                        <td class="mono">@p.Moneda</td>
+                        <td>@Textos.Idioma(p.Idioma)</td>
+                        <td>@p.Correo</td>
+                        <td><EstadoProveedor Activo="p.Activo" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="tarjetas">
+        @foreach (var p in Filtrados)
+        {
+            <a class="tarjeta" href="proveedores/@p.Id">
+                <div class="tarjeta-fila"><span class="tarjeta-titulo">@p.Nombre</span><EstadoProveedor Activo="p.Activo" /></div>
+                <div class="tarjeta-meta">
+                    <span>@p.Tipo</span><span class="mono">@p.Moneda</span><span>@Textos.Idioma(p.Idioma)</span>
+                    @if (p.Rtn is not null) { <span class="mono">RTN @p.Rtn</span> }
+                </div>
+                <div class="tarjeta-meta"><span>@p.Correo</span></div>
+            </a>
+        }
+    </div>
+}
+
+<Dialogo @bind-Abierto="_nuevo" Titulo="Nuevo proveedor">
+    <ChildContent>
+        <MensajeError Texto="@_errorNuevo" />
+        <FormularioProveedor Id="f-prov" Datos="_datos" OnSubmit="Crear" />
+        <p class="texto-suave" style="margin-top:1rem">Los contactos se agregan desde el detalle del proveedor.</p>
+    </ChildContent>
+    <Pie>
+        <button type="button" class="boton boton-secundario" @onclick="() => _nuevo = false">Cancelar</button>
+        <BotonGuardar Formulario="f-prov" Ocupado="_guardando" Texto="Crear proveedor" />
+    </Pie>
+</Dialogo>
+
+@code {
+    private List<ProveedorDto>? _lista;
+    private string? _error, _errorNuevo;
+    private bool? _activo;
+    private string _busqueda = "";
+    private bool _nuevo, _guardando;
+    private FormularioProveedor.DatosProveedor _datos = new();
+
+    private List<ProveedorDto> Filtrados => (_lista ?? [])
+        .Where(p => _activo is null || p.Activo == _activo)
+        .Where(p => _busqueda.Length == 0
+            || p.Nombre.Contains(_busqueda, StringComparison.OrdinalIgnoreCase)
+            || p.Correo.Contains(_busqueda, StringComparison.OrdinalIgnoreCase)
+            || (p.Rtn?.Contains(_busqueda.Replace("-", "")) ?? false))
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _lista = await Api.GetAsync<List<ProveedorDto>>("api/proveedores"); }
+        catch (ApiException e) { _error = e.Message; _lista = []; }
+    }
+
+    private void AbrirNuevo() { _datos = new(); _errorNuevo = null; _nuevo = true; }
+
+    private async Task Crear()
+    {
+        _guardando = true; _errorNuevo = null;
+        try
+        {
+            var d = _datos;
+            var r = await Api.PostAsync<ProveedorDetalleDto>("api/proveedores",
+                new CrearProveedorRequest(d.Nombre, d.Tipo, d.Rtn, d.Moneda, d.Idioma, d.Correo, d.Direccion, null));
+            _nuevo = false;
+            Avisos.Exito($"Proveedor {r.Proveedor.Nombre} creado.");
+            Nav.NavigateTo($"proveedores/{r.Proveedor.Id}");
+        }
+        catch (ApiException e) { _errorNuevo = e.Message; }
+        finally { _guardando = false; }
+    }
+}

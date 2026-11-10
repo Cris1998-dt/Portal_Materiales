@@ -1,0 +1,15 @@
+<div class="encabezado-pagina">
+    <div class="encabezado-texto">
+        @Antes
+        <h1>@Titulo</h1>
+        @if (Descripcion is not null) { <p class="texto-suave">@Descripcion</p> }
+    </div>
+    @if (Acciones is not null) { <div class="encabezado-acciones">@Acciones</div> }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = "";
+    [Parameter] public string? Descripcion { get; set; }
+    [Parameter] public RenderFragment? Acciones { get; set; }
+    [Parameter] public RenderFragment? Antes { get; set; }
+}

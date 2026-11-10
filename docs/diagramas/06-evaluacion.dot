@@ -1,0 +1,26 @@
+// Registrar evaluación con fotos (caso de uso con almacenamiento externo). Regenerar: dot -Tpng -Gdpi=200 06-evaluacion.dot -o 06-evaluacion.png
+digraph evaluacion {
+  rankdir=TB; bgcolor="white"; pad=0.3; nodesep=0.4; ranksep=0.32;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, fillcolor="white", color="#525252", margin="0.14,0.07"];
+  edge [fontname="Helvetica", fontsize=9, color="#525252", arrowsize=0.7];
+
+  a [label="Coordinador envía formulario\nresultado + comentarios + fotos", fillcolor="#edf5ff", color="#0f62fe"];
+  b [label="Cargar solicitud\n(oculta si es de otro proveedor)"];
+  c [shape=diamond, label="¿Rol Coordinador, estado\nEnviado y 1–5 fotos?", fillcolor="white", width=2.6, height=1.0];
+  d [shape=diamond, label="¿Cada foto JPEG/PNG/WebP\ny ≤ 5 MB?", fillcolor="white", width=2.6, height=1.0];
+  e [label="Subir cada foto a Blob Storage\nsolicitudes/{id}/{guid}.ext"];
+  f [label="Dominio: RegistrarEvaluacion\n→ estado En evaluación + historial"];
+  g [label="Guardar en SQL Server"];
+  h [shape=diamond, label="¿Todo bien?", fillcolor="white", width=1.5, height=0.8];
+  ok [label="204 Sin contenido", fillcolor="#defbe6", color="#24a148"];
+  borrar [label="Borrar del Blob las fotos\nya subidas (sin huérfanos)", fillcolor="#fcf4d6", color="#b28600"];
+  err1 [label="403 / 409 / 400\nsin subir ningún archivo", fillcolor="#fff1f1", color="#da1e28"];
+  err2 [label="400 Datos inválidos", fillcolor="#fff1f1", color="#da1e28"];
+  err3 [label="Error devuelto al usuario", fillcolor="#fff1f1", color="#da1e28"];
+
+  a -> b -> c;
+  c -> d [label=" Sí"]; c -> err1 [label=" No"];
+  d -> e [label=" Sí"]; d -> err2 [label=" No"];
+  e -> f -> g -> h;
+  h -> ok [label=" Sí"]; h -> borrar [label=" No"]; borrar -> err3;
+}

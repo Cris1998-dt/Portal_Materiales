@@ -1,0 +1,112 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject Sesion Sesion
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+@if (!Sesion.Activa)
+{
+    return; // OnInitialized ya redirigió al login
+}
+
+<div class="app">
+    <a class="solo-lector" href="#contenido">Saltar al contenido</a>
+
+    <header class="superior">
+        <button type="button" class="boton-icono boton-menu" aria-label="Abrir menú" aria-expanded="@_menu" aria-controls="lateral" @onclick="() => _menu = true">
+            <Icono Nombre="menu" Tamano="22" />
+        </button>
+        <span class="titulo">Portal de Materiales</span>
+    </header>
+
+    @if (_menu)
+    {
+        <div class="lateral-fondo" @onclick="() => _menu = false"></div>
+    }
+    <aside id="lateral" class="lateral @(_menu ? "abierto" : "")" aria-label="Navegación principal">
+        <div class="marca">
+            <Icono Nombre="paquete" Tamano="22" /> <span>Portal de Materiales</span>
+        </div>
+        <nav class="nav">
+            <NavLink href="solicitudes" Match="NavLinkMatch.Prefix"><Icono Nombre="solicitudes" /> Solicitudes</NavLink>
+            @if (Sesion.Es(Rol.Solicitante, Rol.Coordinador))
+            {
+                <NavLink href="indicadores"><Icono Nombre="grafico" /> Indicadores</NavLink>
+                <NavLink href="proveedores" Match="NavLinkMatch.Prefix"><Icono Nombre="edificio" /> Proveedores</NavLink>
+            }
+        </nav>
+        <div class="lateral-pie">
+            <div class="usuario">
+                <strong>@Sesion.Nombre</strong>
+                <span>@Sesion.Rol</span>
+            </div>
+            <div class="fila">
+                <button type="button" class="boton boton-secundario" @onclick="CambiarTema" aria-label="Tema: @TemaTexto. Cambiar tema">
+                    <Icono Nombre="@TemaIcono" /> @TemaTexto
+                </button>
+                <button type="button" class="boton boton-secundario" @onclick="Salir"><Icono Nombre="salir" /> Salir</button>
+            </div>
+        </div>
+    </aside>
+
+    <div class="principal">
+        <main id="contenido" class="contenido">
+            @Body
+        </main>
+    </div>
+</div>
+<ListaAvisos />
+
+@code {
+    private bool _menu;
+    private string _tema = ""; // "" = sistema
+
+    private string TemaTexto => _tema switch { "light" => "Claro", "dark" => "Oscuro", _ => "Sistema" };
+    private string TemaIcono => _tema switch { "light" => "sol", "dark" => "luna", _ => "monitor" };
+
+    protected override void OnInitialized()
+    {
+        Sesion.Cambio += AlCambiarSesion;
+        Nav.LocationChanged += AlNavegar;
+        if (!Sesion.Activa) Nav.NavigateTo("login", replace: true);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        _tema = await JS.InvokeAsync<string>("portal.leerTema");
+        StateHasChanged();
+    }
+
+    private async Task CambiarTema()
+    {
+        _tema = _tema switch { "" => "light", "light" => "dark", _ => "" };
+        await JS.InvokeVoidAsync("portal.tema", _tema == "" ? null : _tema);
+    }
+
+    private async Task Salir()
+    {
+        await Sesion.CerrarAsync();
+        Nav.NavigateTo("login", replace: true);
+    }
+
+    private void AlCambiarSesion()
+    {
+        if (!Sesion.Activa) Nav.NavigateTo("login", replace: true);
+        InvokeAsync(StateHasChanged);
+    }
+
+    // En celular/tablet el menú es un panel superpuesto: se cierra al cambiar de página.
+    private void AlNavegar(object? _, LocationChangedEventArgs e)
+    {
+        if (!_menu) return;
+        _menu = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Sesion.Cambio -= AlCambiarSesion;
+        Nav.LocationChanged -= AlNavegar;
+    }
+}

@@ -1,0 +1,43 @@
+// Flujo de actividades por rol: una columna por rol, el tiempo avanza hacia abajo.
+// Regenerar: dot -Tpng -Gdpi=200 02-flujo-roles.dot -o 02-flujo-roles.png
+digraph roles {
+  rankdir=TB; bgcolor="white"; pad=0.2; nodesep=0.3; ranksep=0.3; newrank=true;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, fillcolor="white", color="#525252", margin="0.1,0.06", width=1.7];
+  edge [fontname="Helvetica", fontsize=9.5, color="#525252", arrowsize=0.7];
+
+  subgraph cluster_sol {
+    label="Solicitante"; fontname="Helvetica-Bold"; fontsize=12; style="rounded,filled"; fillcolor="#f4f4f4"; color="#c6c6c6";
+    s1 [label="Crear solicitud"];
+    s2 [label="Revisar evaluación\ny fotos"];
+    s3 [shape=diamond, label="¿Muestra\naceptable?", width=1.5, height=0.8];
+    s4 [label="Aprobar", fillcolor="#defbe6", color="#24a148", width=0.9];
+    s5 [label="Rechazar con\ncomentario", fillcolor="#fff1f1", color="#da1e28", width=1.1];
+    fin [shape=doublecircle, label="Aprobada", fontsize=9, fillcolor="#defbe6", color="#24a148", width=0.8];
+  }
+  subgraph cluster_coord {
+    label="Coordinador"; fontname="Helvetica-Bold"; fontsize=12; style="rounded,filled"; fillcolor="#edf5ff"; color="#a6c8ff";
+    c1 [label="Asignar a un\nproveedor activo"];
+    c2 [label="Evaluar muestra:\nresultado, comentarios\ny 1–5 fotos"];
+  }
+  subgraph cluster_prov {
+    label="Proveedor"; fontname="Helvetica-Bold"; fontsize=12; style="rounded,filled"; fillcolor="#fcf4d6"; color="#f1c21b";
+    p1 [label="Aceptar con\nfecha compromiso"];
+    p3 [label="Registrar envío:\nfecha, transportista\ny guía"];
+    nota [shape=note, label="Fecha compromiso\npasada sin envío:\nVENCIDA", fontsize=9.5, fillcolor="#fff1f1", color="#da1e28", width=1.4];
+  }
+
+  { rank=same; s1; } { rank=same; c1; } { rank=same; p1; } { rank=same; p3; } { rank=same; nota; }
+  { rank=same; c2; } { rank=same; s2; } { rank=same; s3; } { rank=same; s4; s5; } { rank=same; fin; }
+
+  s1 -> c1 [xlabel="Solicitado "];
+  c1 -> p1 [xlabel="Asignado "];
+  p1 -> p3 [label=" En progreso"];
+  p3 -> nota [style=dotted, arrowhead=none, color="#da1e28"];
+  p3 -> c2 [xlabel="Enviado "];
+  c2 -> s2 [xlabel="En evaluación "];
+  s2 -> s3;
+  s3 -> s4 [label=" Sí"];
+  s3 -> s5 [label=" No"];
+  s4 -> fin;
+  s5 -> p1 [label=" vuelve a En progreso:\n nuevo compromiso", color="#da1e28", fontcolor="#a2191f", constraint=false];
+}

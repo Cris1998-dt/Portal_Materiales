@@ -1,0 +1,15 @@
+# Dependencias locales: SQL Server y Azurite (emulador de Azure Blob Storage).
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Portal#Local2026"
+    ports: ["14334:1433"]
+    volumes: [sql-datos:/var/opt/mssql]
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    command: azurite-blob --blobHost 0.0.0.0 --loose --skipApiVersionCheck
+    ports: ["10000:10000"]
+volumes:
+  sql-datos:

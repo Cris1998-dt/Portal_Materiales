@@ -1,0 +1,3 @@
+@if (Activo) { <Insignia Variante="exito" IconoNombre="check-circulo">Activo</Insignia> }
+else { <Insignia Variante="neutro" IconoNombre="prohibido">Inactivo</Insignia> }
+@code { [Parameter] public bool Activo { get; set; } }

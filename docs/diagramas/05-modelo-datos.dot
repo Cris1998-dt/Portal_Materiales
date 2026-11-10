@@ -1,0 +1,48 @@
+// Modelo de datos. Regenerar: dot -Tpng -Gdpi=200 05-modelo-datos.dot -o 05-modelo-datos.png
+digraph er {
+  rankdir=TB; bgcolor="white"; pad=0.2; nodesep=0.3; ranksep=0.45;
+  node [shape=plain, fontname="Helvetica", fontsize=10.5];
+  edge [color="#525252", arrowsize=0.7, fontname="Helvetica", fontsize=9.5];
+
+  Usuarios [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="3" color="#8d8d8d">
+    <tr><td bgcolor="#e0e0e0"><b>Usuarios</b></td></tr><tr><td align="left"><b>Id</b> PK</td></tr>
+    <tr><td align="left">NombreUsuario (único)</td></tr><tr><td align="left">Nombre, Rol</td></tr><tr><td align="left">PasswordHash</td></tr>
+    <tr><td align="left">ProveedorId FK (null)</td></tr></table>>];
+  Proveedores [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="3" color="#24a148">
+    <tr><td bgcolor="#24a148"><font color="white"><b>Proveedores</b></font></td></tr><tr><td align="left"><b>Id</b> PK</td></tr>
+    <tr><td align="left">Nombre, Tipo</td></tr><tr><td align="left">Rtn (único, null)</td></tr>
+    <tr><td align="left">Moneda, Idioma</td></tr><tr><td align="left">Correo, Direccion</td></tr><tr><td align="left">Activo</td></tr></table>>];
+  ContactosProveedor [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="3" color="#8d8d8d">
+    <tr><td bgcolor="#e0e0e0"><b>ContactosProveedor</b></td></tr><tr><td align="left"><b>Id</b> PK</td></tr><tr><td align="left">ProveedorId FK</td></tr>
+    <tr><td align="left">Nombre, Puesto</td></tr><tr><td align="left">Telefono, Correo</td></tr></table>>];
+  Solicitudes [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="3" color="#0f62fe">
+    <tr><td bgcolor="#0f62fe"><font color="white"><b>Solicitudes</b></font></td></tr>
+    <tr><td align="left"><b>Id</b> PK</td></tr><tr><td align="left">Material, Tipo, Descripcion</td></tr>
+    <tr><td align="left">FechaObjetivo, Prioridad</td></tr><tr><td align="left">Estado</td></tr>
+    <tr><td align="left">SolicitanteId FK</td></tr><tr><td align="left">ProveedorId FK (null)</td></tr>
+    <tr><td align="left">FechaCompromiso (null)</td></tr><tr><td align="left">CreadaEn</td></tr></table>>];
+  Envio [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="3" color="#8d8d8d">
+    <tr><td bgcolor="#e0e0e0"><b>Envio</b></td></tr><tr><td align="left"><b>Id</b> PK</td></tr><tr><td align="left">SolicitudId FK</td></tr>
+    <tr><td align="left">FechaEnvio</td></tr><tr><td align="left">Transportista</td></tr><tr><td align="left">NumeroGuia</td></tr>
+    <tr><td align="left">FechaCompromiso</td></tr></table>>];
+  Evaluacion [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="3" color="#8d8d8d">
+    <tr><td bgcolor="#e0e0e0"><b>Evaluacion</b></td></tr><tr><td align="left"><b>Id</b> PK</td></tr><tr><td align="left">SolicitudId FK</td></tr>
+    <tr><td align="left">Resultado</td></tr><tr><td align="left">Comentarios</td></tr><tr><td align="left">CoordinadorId FK</td></tr><tr><td align="left">RegistradaEn</td></tr></table>>];
+  FotoMuestra [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="3" color="#8d8d8d">
+    <tr><td bgcolor="#e0e0e0"><b>FotoMuestra</b></td></tr><tr><td align="left"><b>Id</b> PK</td></tr><tr><td align="left">EvaluacionId FK</td></tr>
+    <tr><td align="left">NombreArchivo (Blob)</td></tr><tr><td align="left">ContentType</td></tr><tr><td align="left">NombreOriginal</td></tr></table>>];
+  HistorialCambio [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="3" color="#8d8d8d">
+    <tr><td bgcolor="#e0e0e0"><b>HistorialCambio</b></td></tr><tr><td align="left"><b>Id</b> PK</td></tr><tr><td align="left">SolicitudId FK</td></tr>
+    <tr><td align="left">Fecha, UsuarioId</td></tr><tr><td align="left">UsuarioNombre, Accion</td></tr>
+    <tr><td align="left">EstadoAnterior</td></tr><tr><td align="left">EstadoNuevo, Detalle</td></tr></table>>];
+
+  Usuarios -> Solicitudes [xlabel="crea  ", arrowhead=crow];
+  Proveedores -> Solicitudes [label=" 1 : N", arrowhead=crow];
+  Proveedores -> ContactosProveedor [label=" 1 : N", arrowhead=crow];
+  Proveedores -> Usuarios [label=" representa", arrowhead=crow, style=dashed, constraint=false];
+  Solicitudes -> Envio [xlabel="1 : N ", arrowhead=crow];
+  Solicitudes -> Evaluacion [label=" 1 : N", arrowhead=crow];
+  Solicitudes -> HistorialCambio [label=" 1 : N", arrowhead=crow];
+  Evaluacion -> FotoMuestra [label=" 1 : 1..5", arrowhead=crow];
+  { rank=same; Usuarios; Proveedores; }
+}

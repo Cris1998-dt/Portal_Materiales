@@ -1,0 +1,24 @@
+@* Estado = ícono + texto + color (nunca solo color, WCAG 1.4.1). *@
+<span class="insignia insignia-@Variante"><Icono Nombre="@IconoEstado" Tamano="14" />@Textos.De(Estado)</span>
+
+@code {
+    [Parameter, EditorRequired] public EstadoSolicitud Estado { get; set; }
+
+    private string Variante => Estado switch
+    {
+        EstadoSolicitud.Solicitado => "neutro",
+        EstadoSolicitud.Asignado or EstadoSolicitud.EnProgreso => "info",
+        EstadoSolicitud.Enviado or EstadoSolicitud.EnEvaluacion => "advertencia",
+        _ => "exito",
+    };
+
+    private string IconoEstado => Estado switch
+    {
+        EstadoSolicitud.Solicitado => "archivo",
+        EstadoSolicitud.Asignado => "usuario-check",
+        EstadoSolicitud.EnProgreso => "reloj",
+        EstadoSolicitud.Enviado => "camion",
+        EstadoSolicitud.EnEvaluacion => "lupa",
+        _ => "check-circulo",
+    };
+}

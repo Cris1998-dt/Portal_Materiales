@@ -1,0 +1,5 @@
+@if (!string.IsNullOrEmpty(Texto))
+{
+    <div class="alerta alerta-error" role="alert"><Icono Nombre="alerta" /><span>@Texto</span></div>
+}
+@code { [Parameter] public string? Texto { get; set; } }

@@ -1,0 +1,94 @@
+@page "/indicadores"
+@inject Api Api
+
+<PageTitle>Indicadores · Portal de Materiales</PageTitle>
+
+<EncabezadoPagina Titulo="Indicadores" Descripcion="Estado de los desarrollos y cumplimiento de los proveedores." />
+
+<MensajeError Texto="@_error" />
+@if (_d is null)
+{
+    @if (_error is null) { <Cargando /> }
+    return;
+}
+
+<h2 class="solo-lector">Solicitudes por estado</h2>
+<div class="kpis">
+    <a class="kpi kpi-alerta" href="solicitudes?vencidas=true">
+        <span class="etiqueta insignias"><Icono Nombre="alerta" Tamano="16" /> Vencidas</span>
+        <span class="valor">@_d.Vencidas</span>
+    </a>
+    @foreach (var (estado, total) in _d.PorEstado)
+    {
+        <a class="kpi" href="solicitudes?estado=@estado">
+            <span><InsigniaEstado Estado="estado" /></span>
+            <span class="valor">@total</span>
+        </a>
+    }
+</div>
+
+<div class="rejilla-detalle">
+    <section class="panel" aria-labelledby="t-cumpl">
+        <div class="panel-encabezado"><h2 id="t-cumpl"><Icono Nombre="camion" /> Entregas a tiempo por proveedor</h2></div>
+        <div class="panel-cuerpo">
+            <ul class="lista-simple">
+                @foreach (var c in _d.EntregasATiempo.OrderByDescending(c => c.Porcentaje ?? -1).ThenBy(c => c.Proveedor))
+                {
+                    <li class="cumplimiento">
+                        <div class="cumplimiento-fila">
+                            <a href="proveedores/@c.ProveedorId">@c.Proveedor</a>
+                            <strong class="mono">@(c.Porcentaje is { } p ? $"{p:0.#} %" : "—")</strong>
+                        </div>
+                        @if (c.Porcentaje is { } pct)
+                        {
+                            <div class="barra @(pct >= 90 ? "buena" : pct >= 60 ? "media" : "mala")" role="img" aria-label="@pct.ToString("0.#") por ciento a tiempo">
+                                <span style="width: @(pct.ToString(System.Globalization.CultureInfo.InvariantCulture))%"></span>
+                            </div>
+                            <span class="texto-suave">@c.ATiempo de @c.Envios envíos a tiempo</span>
+                        }
+                        else
+                        {
+                            <span class="texto-suave">Sin envíos todavía</span>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    </section>
+
+    <section class="panel" aria-labelledby="t-venc">
+        <div class="panel-encabezado"><h2 id="t-venc"><Icono Nombre="alerta" /> Vencidas</h2></div>
+        <div class="panel-cuerpo">
+            @if (_d.DetalleVencidas.Count == 0)
+            {
+                <p class="texto-suave">No hay solicitudes vencidas.</p>
+            }
+            else
+            {
+                <ul class="lista-simple">
+                    @foreach (var s in _d.DetalleVencidas)
+                    {
+                        <li>
+                            <a href="solicitudes/@s.Id"><span class="mono">#@s.Id</span> @s.Material</a>
+                            <div class="tarjeta-meta">
+                                <span>@s.Proveedor</span>
+                                <span>Compromiso <span class="mono">@Textos.Fecha(s.FechaCompromiso)</span></span>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    private IndicadoresDto? _d;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _d = await Api.GetAsync<IndicadoresDto>("api/indicadores"); }
+        catch (ApiException e) { _error = e.Message; }
+    }
+}

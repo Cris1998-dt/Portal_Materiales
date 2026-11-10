@@ -1,0 +1,195 @@
+@page "/proveedores/{Id:int}"
+@inject Api Api
+@inject Sesion Sesion
+@inject Avisos Avisos
+
+<PageTitle>@(_d?.Proveedor.Nombre ?? "Proveedor") · Portal de Materiales</PageTitle>
+
+@if (_d is null)
+{
+    <MensajeError Texto="@_error" />
+    @if (_error is null) { <Cargando /> } else { <a class="boton boton-secundario" href="proveedores"><Icono Nombre="atras" /> Volver</a> }
+    return;
+}
+
+@{ var p = _d.Proveedor; var coord = Sesion.Es(Rol.Coordinador); }
+
+<EncabezadoPagina Titulo="@p.Nombre">
+    <Antes>
+        <a class="volver" href="proveedores"><Icono Nombre="atras" Tamano="16" /> Proveedores</a>
+        <div class="insignias">
+            <Insignia Variante="@(p.Tipo == TipoProveedor.Nacional ? "info" : "neutro")" IconoNombre="@(p.Tipo == TipoProveedor.Nacional ? "mapa" : "globo")">@p.Tipo</Insignia>
+            <EstadoProveedor Activo="p.Activo" />
+        </div>
+    </Antes>
+    <Acciones>
+        @if (coord)
+        {
+            <button type="button" class="boton boton-secundario" @onclick="AbrirEditar"><Icono Nombre="lapiz" /> Editar</button>
+            @if (p.Activo)
+            {
+                <button type="button" class="boton boton-secundario" @onclick="() => _confirmarEstado = true"><Icono Nombre="prohibido" /> Desactivar</button>
+            }
+            else
+            {
+                <button type="button" class="boton boton-primario" @onclick="() => _confirmarEstado = true"><Icono Nombre="check-circulo" /> Activar</button>
+            }
+        }
+    </Acciones>
+</EncabezadoPagina>
+
+@if (!p.Activo)
+{
+    <div class="alerta alerta-info" role="note"><Icono Nombre="prohibido" /><span>Proveedor inactivo: no se le pueden asignar solicitudes nuevas. Las ya asignadas siguen su curso.</span></div>
+}
+
+<div class="pila">
+    <section class="panel" aria-labelledby="t-datos">
+        <div class="panel-encabezado"><h2 id="t-datos"><Icono Nombre="edificio" /> Datos generales</h2></div>
+        <div class="panel-cuerpo">
+            <dl class="datos">
+                <div><dt>RTN</dt><dd class="mono">@(p.Rtn ?? "No aplica")</dd></div>
+                <div><dt>Moneda</dt><dd><span class="mono">@p.Moneda</span> @(Textos.Monedas.FirstOrDefault(m => m.Codigo == p.Moneda).Nombre)</dd></div>
+                <div><dt>Idioma</dt><dd>@Textos.Idioma(p.Idioma) <span class="mono texto-suave">(@p.Idioma)</span></dd></div>
+                <div><dt>Correo</dt><dd><a href="mailto:@p.Correo">@p.Correo</a></dd></div>
+                <div class="ancho-completo"><dt>Dirección</dt><dd>@p.Direccion</dd></div>
+            </dl>
+        </div>
+    </section>
+
+    <section class="panel" aria-labelledby="t-cont">
+        <div class="panel-encabezado">
+            <h2 id="t-cont"><Icono Nombre="usuario-check" /> Contactos (@_d.Contactos.Count)</h2>
+            @if (coord)
+            {
+                <button type="button" class="boton boton-secundario" @onclick="() => AbrirContacto(null)"><Icono Nombre="mas" /> Agregar</button>
+            }
+        </div>
+        <div class="panel-cuerpo">
+            @if (_d.Contactos.Count == 0)
+            {
+                <p class="texto-suave">Sin contactos registrados.</p>
+            }
+            else
+            {
+                <div class="contactos">
+                    @foreach (var c in _d.Contactos)
+                    {
+                        <article class="contacto">
+                            <strong>@c.Nombre</strong>
+                            <span class="texto-suave">@c.Puesto</span>
+                            <a href="tel:@c.Telefono.Replace(" ", "")"><Icono Nombre="telefono" Tamano="16" /> @c.Telefono</a>
+                            <a href="mailto:@c.Correo"><Icono Nombre="correo" Tamano="16" /> @c.Correo</a>
+                            @if (coord)
+                            {
+                                <div class="acciones">
+                                    <button type="button" class="boton-icono" aria-label="Editar contacto @c.Nombre" @onclick="() => AbrirContacto(c)"><Icono Nombre="lapiz" /></button>
+                                    <button type="button" class="boton-icono" aria-label="Eliminar contacto @c.Nombre" @onclick="() => _eliminar = c"><Icono Nombre="basura" /></button>
+                                </div>
+                            }
+                        </article>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+</div>
+
+<Dialogo @bind-Abierto="_editar" Titulo="Editar proveedor">
+    <ChildContent>
+        <MensajeError Texto="@_errorDialogo" />
+        <FormularioProveedor Id="f-prov" Datos="_datos" OnSubmit="Guardar" />
+    </ChildContent>
+    <Pie><button type="button" class="boton boton-secundario" @onclick="() => _editar = false">Cancelar</button><BotonGuardar Formulario="f-prov" Ocupado="_ocupado" /></Pie>
+</Dialogo>
+
+<Dialogo Abierto="_contacto" AbiertoChanged="v => _contacto = v" Titulo="@(_contactoId is null ? "Agregar contacto" : "Editar contacto")">
+    <ChildContent>
+        <MensajeError Texto="@_errorDialogo" />
+        <form id="f-contacto" class="campos dos" @onsubmit="GuardarContacto">
+            <div class="campo"><label for="c-nombre" class="requerido">Nombre</label><input id="c-nombre" @bind="_cNombre" required maxlength="150" autocomplete="off" /></div>
+            <div class="campo"><label for="c-puesto" class="requerido">Puesto</label><input id="c-puesto" @bind="_cPuesto" required maxlength="100" /></div>
+            <div class="campo"><label for="c-tel" class="requerido">Teléfono</label><input id="c-tel" type="tel" @bind="_cTelefono" required maxlength="30" placeholder="+504 2550-1122" /></div>
+            <div class="campo"><label for="c-correo" class="requerido">Correo</label><input id="c-correo" type="email" @bind="_cCorreo" required maxlength="150" autocapitalize="none" /></div>
+        </form>
+    </ChildContent>
+    <Pie><button type="button" class="boton boton-secundario" @onclick="() => _contacto = false">Cancelar</button><BotonGuardar Formulario="f-contacto" Ocupado="_ocupado" /></Pie>
+</Dialogo>
+
+<Dialogo Abierto="_eliminar is not null" AbiertoChanged="_ => _eliminar = null" Titulo="Eliminar contacto">
+    <ChildContent>
+        <MensajeError Texto="@_errorDialogo" />
+        <p>¿Eliminar a <strong>@_eliminar?.Nombre</strong> de los contactos de @p.Nombre? Esta acción no se puede deshacer.</p>
+    </ChildContent>
+    <Pie>
+        <button type="button" class="boton boton-secundario" @onclick="() => _eliminar = null">Cancelar</button>
+        <button type="button" class="boton boton-peligro" disabled="@_ocupado" @onclick="EliminarContacto"><Icono Nombre="basura" /> Eliminar</button>
+    </Pie>
+</Dialogo>
+
+<Dialogo @bind-Abierto="_confirmarEstado" Titulo="@(p.Activo ? "Desactivar proveedor" : "Activar proveedor")">
+    <ChildContent>
+        <MensajeError Texto="@_errorDialogo" />
+        @if (p.Activo) { <p>@p.Nombre dejará de recibir asignaciones nuevas. Lo que ya tiene asignado sigue su curso.</p> }
+        else { <p>@p.Nombre podrá volver a recibir asignaciones.</p> }
+    </ChildContent>
+    <Pie>
+        <button type="button" class="boton boton-secundario" @onclick="() => _confirmarEstado = false">Cancelar</button>
+        <button type="button" class="boton @(p.Activo ? "boton-peligro" : "boton-primario")" disabled="@_ocupado" @onclick="CambiarEstado">@(p.Activo ? "Desactivar" : "Activar")</button>
+    </Pie>
+</Dialogo>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private ProveedorDetalleDto? _d;
+    private string? _error, _errorDialogo;
+    private bool _ocupado, _editar, _contacto, _confirmarEstado;
+    private FormularioProveedor.DatosProveedor _datos = new();
+    private int? _contactoId;
+    private string _cNombre = "", _cPuesto = "", _cTelefono = "", _cCorreo = "";
+    private ContactoDto? _eliminar;
+
+    protected override Task OnParametersSetAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        try { _d = await Api.GetAsync<ProveedorDetalleDto>($"api/proveedores/{Id}"); _error = null; }
+        catch (ApiException e) { _error = e.Message; _d = null; }
+    }
+
+    private void AbrirEditar() { _datos = FormularioProveedor.DatosProveedor.De(_d!.Proveedor); _errorDialogo = null; _editar = true; }
+
+    private void AbrirContacto(ContactoDto? c)
+    {
+        _contactoId = c?.Id;
+        (_cNombre, _cPuesto, _cTelefono, _cCorreo) = c is null ? ("", "", "", "") : (c.Nombre, c.Puesto, c.Telefono, c.Correo);
+        _errorDialogo = null; _contacto = true;
+    }
+
+    private Task Guardar() => Hacer(async () => { await Api.PutAsync($"api/proveedores/{Id}", _datos.ComoRequest()); _editar = false; }, "Proveedor actualizado.");
+
+    private Task GuardarContacto() => Hacer(async () =>
+    {
+        var r = new ContactoRequest(_cNombre, _cPuesto, _cTelefono, _cCorreo);
+        if (_contactoId is int cid) await Api.PutAsync($"api/proveedores/{Id}/contactos/{cid}", r);
+        else await Api.PostAsync($"api/proveedores/{Id}/contactos", r);
+        _contacto = false;
+    }, _contactoId is null ? "Contacto agregado." : "Contacto actualizado.");
+
+    private Task EliminarContacto() => Hacer(async () => { await Api.DeleteAsync($"api/proveedores/{Id}/contactos/{_eliminar!.Id}"); _eliminar = null; }, "Contacto eliminado.");
+
+    private Task CambiarEstado() => Hacer(async () =>
+    {
+        await Api.PostAsync($"api/proveedores/{Id}/{(_d!.Proveedor.Activo ? "desactivar" : "activar")}");
+        _confirmarEstado = false;
+    }, _d!.Proveedor.Activo ? "Proveedor desactivado." : "Proveedor activado.");
+
+    private async Task Hacer(Func<Task> accion, string exito)
+    {
+        _ocupado = true; _errorDialogo = null;
+        try { await accion(); await CargarAsync(); Avisos.Exito(exito); }
+        catch (ApiException e) { _errorDialogo = e.Message; }
+        finally { _ocupado = false; }
+    }
+}

@@ -1,0 +1,26 @@
+// Máquina de estados de una solicitud. Regenerar: dot -Tpng -Gdpi=200 01-estados.dot -o 01-estados.png
+digraph estados {
+  rankdir=TB; bgcolor="white"; pad=0.2; nodesep=0.6; ranksep=0.42;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=13, penwidth=1.5, margin="0.2,0.1", width=1.9];
+  edge [fontname="Helvetica", fontsize=11, color="#525252", penwidth=1.2, arrowsize=0.8];
+
+  inicio [shape=circle, label="", width=0.22, style=filled, fillcolor="#161616"];
+  fin [shape=doublecircle, label="", width=0.16, style=filled, fillcolor="#161616"];
+  Solicitado   [fillcolor="#f4f4f4", color="#8d8d8d"];
+  Asignado     [fillcolor="#edf5ff", color="#0f62fe"];
+  EnProgreso   [label="En progreso", fillcolor="#edf5ff", color="#0f62fe"];
+  Enviado      [fillcolor="#fcf4d6", color="#b28600"];
+  EnEvaluacion [label="En evaluación", fillcolor="#fcf4d6", color="#b28600"];
+  Aprobado     [fillcolor="#defbe6", color="#24a148"];
+
+  inicio -> Solicitado [label="  Crear (Solicitante)"];
+  Solicitado -> Asignado [label="  Asignar proveedor (Coordinador)"];
+  Asignado -> EnProgreso [label="  Aceptar con fecha compromiso (Proveedor)"];
+  EnProgreso -> Enviado [label="  Registrar envío (Proveedor)"];
+  Enviado -> EnEvaluacion [label="  Registrar evaluación y fotos (Coordinador)"];
+  EnEvaluacion -> Aprobado [label="  Aprobar (Solicitante)"];
+  Aprobado -> fin;
+  // Rechazo por la izquierda y recompromiso por la derecha, para que no se crucen con el flujo principal.
+  EnEvaluacion:w -> EnProgreso:w [label="Rechazar con\ncomentario\n(Solicitante):\nanula el\ncompromiso", color="#da1e28", fontcolor="#a2191f"];
+  EnProgreso:e -> EnProgreso:e [label="Nuevo compromiso\ntras rechazo\n(Proveedor)", color="#0f62fe", fontcolor="#0043ce"];
+}

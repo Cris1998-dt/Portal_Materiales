@@ -1,0 +1,420 @@
+@page "/solicitudes/{Id:int}"
+@inject Api Api
+@inject Avisos Avisos
+
+<PageTitle>Solicitud #@Id · Portal de Materiales</PageTitle>
+
+@if (_s is null)
+{
+    <MensajeError Texto="@_error" />
+    @if (_error is null) { <Cargando /> } else { <a class="boton boton-secundario" href="solicitudes"><Icono Nombre="atras" /> Volver</a> }
+    return;
+}
+
+<EncabezadoPagina Titulo="@_s.Material">
+    <Antes>
+        <a class="volver" href="solicitudes"><Icono Nombre="atras" Tamano="16" /> Solicitudes</a>
+        <div class="insignias">
+            <span class="mono texto-suave">#@_s.Id</span>
+            <InsigniaEstado Estado="_s.Estado" />
+            @if (_s.Vencida) { <Insignia Variante="error" IconoNombre="alerta">Vencida</Insignia> }
+        </div>
+    </Antes>
+    <Acciones>
+        @foreach (var a in _s.Acciones)
+        {
+            <button type="button" class="boton @(a is AccionSolicitud.Rechazar ? "boton-secundario" : "boton-primario")" @onclick="() => AbrirAccion(a)">
+                <Icono Nombre="@IconoAccion(a)" /> @Textos.De(a)
+            </button>
+        }
+    </Acciones>
+</EncabezadoPagina>
+
+@if (_s.Acciones.Count == 0 && _s.Estado != EstadoSolicitud.Aprobado)
+{
+    <div class="alerta alerta-info" role="note"><Icono Nombre="reloj" /><span>@Espera()</span></div>
+}
+
+<div class="rejilla-detalle">
+    <div class="pila">
+        <section class="panel" aria-labelledby="t-datos">
+            <div class="panel-encabezado"><h2 id="t-datos"><Icono Nombre="archivo" /> Datos de la solicitud</h2></div>
+            <div class="panel-cuerpo">
+                <dl class="datos">
+                    <div><dt>Tipo</dt><dd>@_s.Tipo</dd></div>
+                    <div><dt>Prioridad</dt><dd>@_s.Prioridad</dd></div>
+                    <div><dt>Fecha objetivo</dt><dd class="mono">@Textos.Fecha(_s.FechaObjetivo)</dd></div>
+                    <div><dt>Compromiso</dt><dd class="mono">@Textos.Fecha(_s.FechaCompromiso)</dd></div>
+                    <div><dt>Solicitante</dt><dd>@_s.Solicitante</dd></div>
+                    <div><dt>Creada</dt><dd class="mono">@Textos.FechaHora(_s.CreadaEn)</dd></div>
+                    <div class="ancho-completo"><dt>Descripción</dt><dd>@_s.Descripcion</dd></div>
+                </dl>
+            </div>
+        </section>
+
+        <section class="panel" aria-labelledby="t-prov">
+            <div class="panel-encabezado"><h2 id="t-prov"><Icono Nombre="edificio" /> Proveedor</h2></div>
+            <div class="panel-cuerpo">
+                @if (_s.Proveedor is { } p)
+                {
+                    <dl class="datos">
+                        <div><dt>Nombre</dt><dd>@p.Nombre</dd></div>
+                        <div><dt>Tipo</dt><dd>@p.Tipo</dd></div>
+                        <div><dt>Moneda / idioma</dt><dd>@p.Moneda · @Textos.Idioma(p.Idioma)</dd></div>
+                        <div><dt>Correo</dt><dd><a href="mailto:@p.Correo">@p.Correo</a></dd></div>
+                    </dl>
+                }
+                else
+                {
+                    <p class="texto-suave">Aún sin asignar.</p>
+                }
+            </div>
+        </section>
+
+        <section class="panel" aria-labelledby="t-envios">
+            <div class="panel-encabezado"><h2 id="t-envios"><Icono Nombre="camion" /> Envíos</h2></div>
+            <div class="panel-cuerpo">
+                @if (_s.Envios.Count == 0)
+                {
+                    <p class="texto-suave">Sin envíos registrados.</p>
+                }
+                else
+                {
+                    <ul class="lista-simple">
+                        @foreach (var e in _s.Envios)
+                        {
+                            <li>
+                                <div class="tarjeta-fila">
+                                    <strong>@e.Transportista · <span class="mono">@e.NumeroGuia</span></strong>
+                                    @if (e.ATiempo) { <Insignia Variante="exito" IconoNombre="check-circulo">A tiempo</Insignia> }
+                                    else { <Insignia Variante="error" IconoNombre="alerta">Fuera de compromiso</Insignia> }
+                                </div>
+                                <div class="tarjeta-meta">
+                                    <span>Enviado <span class="mono">@Textos.Fecha(e.FechaEnvio)</span></span>
+                                    <span>Compromiso <span class="mono">@Textos.Fecha(e.FechaCompromiso)</span></span>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </section>
+
+        <section class="panel" aria-labelledby="t-eval">
+            <div class="panel-encabezado"><h2 id="t-eval"><Icono Nombre="lupa" /> Evaluaciones</h2></div>
+            <div class="panel-cuerpo">
+                @if (_s.Evaluaciones.Count == 0)
+                {
+                    <p class="texto-suave">Sin evaluaciones.</p>
+                }
+                else
+                {
+                    <ul class="lista-simple">
+                        @foreach (var ev in _s.Evaluaciones)
+                        {
+                            <li>
+                                <div class="tarjeta-fila">
+                                    <Insignia Variante="@(ev.Resultado == ResultadoEvaluacion.Cumple ? "exito" : "error")"
+                                              IconoNombre="@(ev.Resultado == ResultadoEvaluacion.Cumple ? "check-circulo" : "x-circulo")">@Textos.De(ev.Resultado)</Insignia>
+                                    <span class="texto-suave mono">@Textos.FechaHora(ev.RegistradaEn)</span>
+                                </div>
+                                <p>@ev.Comentarios</p>
+                                <p class="texto-suave">Evaluó: @ev.Coordinador</p>
+                                <div class="fotos">
+                                    @foreach (var f in ev.Fotos)
+                                    {
+                                        <button type="button" class="foto" aria-label="Ver foto @f.NombreOriginal" @onclick="() => VerFoto(f)">
+                                            @if (_imagenes.TryGetValue(f.Id, out var src)) { <img src="@src" alt="Foto de la muestra: @f.NombreOriginal" /> }
+                                            else { <Icono Nombre="camara" Tamano="22" /> }
+                                        </button>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </section>
+    </div>
+
+    <section class="panel" aria-labelledby="t-hist">
+        <div class="panel-encabezado"><h2 id="t-hist"><Icono Nombre="historial" /> Historial</h2></div>
+        <div class="panel-cuerpo">
+            <ol class="linea-tiempo">
+                @foreach (var h in _s.Historial.Reverse())
+                {
+                    <li>
+                        <div class="cuando mono">@Textos.FechaHora(h.Fecha)</div>
+                        <div><strong>@h.Usuario</strong> · @h.Accion</div>
+                        <div class="detalle">
+                            @if (h.EstadoAnterior is { } ant && ant != h.EstadoNuevo) { <span>@Textos.De(ant) → @Textos.De(h.EstadoNuevo). </span> }
+                            @h.Detalle
+                        </div>
+                    </li>
+                }
+            </ol>
+        </div>
+    </section>
+</div>
+
+@* ---------- Diálogos de cada acción ---------- *@
+
+<Dialogo Abierto="_accion is AccionSolicitud.Asignar" AbiertoChanged="Cerrar" Titulo="Asignar proveedor">
+    <ChildContent>
+        <MensajeError Texto="@_errorAccion" />
+        <form id="f-accion" class="campos" @onsubmit="Ejecutar">
+            <div class="campo">
+                <label for="a-prov" class="requerido">Proveedor activo</label>
+                @if (_proveedores is null) { <Cargando /> }
+                else
+                {
+                    <select id="a-prov" @bind="_proveedorId" required>
+                        <option value="">Seleccione…</option>
+                        @foreach (var p in _proveedores) { <option value="@p.Id">@p.Nombre (@p.Tipo, @p.Moneda)</option> }
+                    </select>
+                    <span class="ayuda">Los proveedores inactivos no aparecen.</span>
+                }
+            </div>
+        </form>
+    </ChildContent>
+    <Pie><button type="button" class="boton boton-secundario" @onclick="() => Cerrar(false)">Cancelar</button><BotonGuardar Formulario="f-accion" Ocupado="_ocupado" Texto="Asignar" /></Pie>
+</Dialogo>
+
+<Dialogo Abierto="_accion is AccionSolicitud.Aceptar" AbiertoChanged="Cerrar" Titulo="Aceptar y comprometer fecha">
+    <ChildContent>
+        <MensajeError Texto="@_errorAccion" />
+        <form id="f-accion" class="campos" @onsubmit="Ejecutar">
+            @if (_s.Estado == EstadoSolicitud.EnProgreso)
+            {
+                <div class="alerta alerta-info"><Icono Nombre="deshacer" /><span>La muestra fue rechazada. Indique la nueva fecha en que enviará otra muestra.</span></div>
+            }
+            <div class="campo">
+                <label for="a-fecha" class="requerido">Fecha compromiso de envío</label>
+                <input id="a-fecha" type="date" @bind="_fecha" required min="@HoyIso" />
+                <span class="ayuda">Si pasa esta fecha sin envío, la solicitud se marca como vencida.</span>
+            </div>
+        </form>
+    </ChildContent>
+    <Pie><button type="button" class="boton boton-secundario" @onclick="() => Cerrar(false)">Cancelar</button><BotonGuardar Formulario="f-accion" Ocupado="_ocupado" Texto="Aceptar" /></Pie>
+</Dialogo>
+
+<Dialogo Abierto="_accion is AccionSolicitud.RegistrarEnvio" AbiertoChanged="Cerrar" Titulo="Registrar envío">
+    <ChildContent>
+        <MensajeError Texto="@_errorAccion" />
+        <form id="f-accion" class="campos dos" @onsubmit="Ejecutar">
+            <div class="campo">
+                <label for="e-fecha" class="requerido">Fecha de envío</label>
+                <input id="e-fecha" type="date" @bind="_fecha" required max="@HoyIso" />
+            </div>
+            <div class="campo">
+                <label for="e-trans" class="requerido">Transportista</label>
+                <input id="e-trans" @bind="_texto1" required maxlength="100" list="transportistas" />
+                <datalist id="transportistas"><option value="DHL" /><option value="FedEx" /><option value="UPS" /><option value="Cargo Expreso" /></datalist>
+            </div>
+            <div class="campo ancho-completo">
+                <label for="e-guia" class="requerido">Número de guía</label>
+                <input id="e-guia" @bind="_texto2" required maxlength="100" autocapitalize="characters" />
+            </div>
+        </form>
+    </ChildContent>
+    <Pie><button type="button" class="boton boton-secundario" @onclick="() => Cerrar(false)">Cancelar</button><BotonGuardar Formulario="f-accion" Ocupado="_ocupado" Texto="Registrar envío" /></Pie>
+</Dialogo>
+
+<Dialogo Abierto="_accion is AccionSolicitud.Evaluar" AbiertoChanged="Cerrar" Titulo="Registrar evaluación">
+    <ChildContent>
+        <MensajeError Texto="@_errorAccion" />
+        <form id="f-accion" class="campos" @onsubmit="Ejecutar">
+            <fieldset class="campo">
+                <legend class="requerido">Resultado</legend>
+                <div class="opciones">
+                    @foreach (var r in Enum.GetValues<ResultadoEvaluacion>())
+                    {
+                        <label class="opcion"><input type="radio" name="resultado" checked="@(_resultado == r)" @onchange="() => _resultado = r" /> @Textos.De(r)</label>
+                    }
+                </div>
+            </fieldset>
+            <div class="campo">
+                <label for="v-com" class="requerido">Comentarios</label>
+                <textarea id="v-com" @bind="_texto1" required maxlength="2000" placeholder="Color, tacto, encogimiento, medidas…"></textarea>
+            </div>
+            <div class="campo">
+                <label for="v-fotos" class="requerido">Fotos de la muestra</label>
+                <InputFile id="v-fotos" OnChange="ElegirFotos" multiple accept="image/jpeg,image/png,image/webp" capture="environment" />
+                <span class="ayuda">De 1 a @Solicitud.MaxFotosPorEvaluacion fotos JPEG, PNG o WebP, de hasta 5 MB cada una. En el celular puede tomarlas con la cámara.</span>
+                @if (_fotos.Count > 0)
+                {
+                    <ul class="texto-suave">
+                        @foreach (var f in _fotos) { <li>@f.Name (@(f.Size / 1024) KB)</li> }
+                    </ul>
+                }
+            </div>
+        </form>
+    </ChildContent>
+    <Pie><button type="button" class="boton boton-secundario" @onclick="() => Cerrar(false)">Cancelar</button><BotonGuardar Formulario="f-accion" Ocupado="_ocupado" Texto="Guardar evaluación" /></Pie>
+</Dialogo>
+
+<Dialogo Abierto="_accion is AccionSolicitud.Aprobar or AccionSolicitud.Rechazar" AbiertoChanged="Cerrar"
+         Titulo="@(_accion is AccionSolicitud.Aprobar ? "Aprobar muestra" : "Rechazar muestra")">
+    <ChildContent>
+        <MensajeError Texto="@_errorAccion" />
+        <form id="f-accion" class="campos" @onsubmit="Ejecutar">
+            <p>
+                @if (_accion is AccionSolicitud.Aprobar) { <text>La solicitud quedará <strong>aprobada</strong> y cerrada.</text> }
+                else { <text>La solicitud regresa a <strong>En progreso</strong> y el proveedor deberá comprometer una nueva fecha.</text> }
+            </p>
+            <div class="campo">
+                <label for="d-com" class="@(_accion is AccionSolicitud.Rechazar ? "requerido" : "")">Comentario</label>
+                <textarea id="d-com" @bind="_texto1" required="@(_accion is AccionSolicitud.Rechazar)" maxlength="1000"
+                          placeholder="@(_accion is AccionSolicitud.Rechazar ? "Indique qué debe corregir el proveedor" : "Opcional")"></textarea>
+            </div>
+        </form>
+    </ChildContent>
+    <Pie>
+        <button type="button" class="boton boton-secundario" @onclick="() => Cerrar(false)">Cancelar</button>
+        <BotonGuardar Formulario="f-accion" Ocupado="_ocupado" Texto="@(_accion is AccionSolicitud.Aprobar ? "Aprobar" : "Rechazar")" />
+    </Pie>
+</Dialogo>
+
+<Dialogo Abierto="_fotoGrande is not null" AbiertoChanged="_ => _fotoGrande = null" Titulo="@(_fotoGrande?.NombreOriginal ?? "")" Ancho="true">
+    @if (_fotoGrande is not null && _imagenes.TryGetValue(_fotoGrande.Id, out var src))
+    {
+        <img class="foto-grande" src="@src" alt="Foto de la muestra: @_fotoGrande.NombreOriginal" />
+    }
+    else { <Cargando Texto="Cargando foto…" /> }
+</Dialogo>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private SolicitudDetalleDto? _s;
+    private string? _error, _errorAccion;
+    private readonly Dictionary<int, string> _imagenes = [];
+
+    private AccionSolicitud? _accion;
+    private bool _ocupado;
+    private List<ProveedorDto>? _proveedores;
+    private int? _proveedorId;
+    private DateOnly _fecha;
+    private string _texto1 = "", _texto2 = "";
+    private ResultadoEvaluacion _resultado = ResultadoEvaluacion.Cumple;
+    private List<IBrowserFile> _fotos = [];
+    private FotoDto? _fotoGrande;
+
+    private static string HoyIso => DateTime.Now.ToString("yyyy-MM-dd");
+
+    protected override Task OnParametersSetAsync() => CargarAsync();
+
+    private async Task CargarAsync()
+    {
+        _error = null;
+        try
+        {
+            _s = await Api.GetAsync<SolicitudDetalleDto>($"api/solicitudes/{Id}");
+            _ = CargarFotosAsync(_s); // en segundo plano: la página no espera las imágenes
+        }
+        catch (ApiException e) { _error = e.Message; _s = null; }
+    }
+
+    private async Task CargarFotosAsync(SolicitudDetalleDto s)
+    {
+        foreach (var f in s.Evaluaciones.SelectMany(e => e.Fotos).Where(f => !_imagenes.ContainsKey(f.Id)))
+        {
+            try { _imagenes[f.Id] = await Api.ImagenAsync(f.Url.TrimStart('/')); StateHasChanged(); }
+            catch (ApiException) { /* queda el ícono de cámara */ }
+        }
+    }
+
+    private void VerFoto(FotoDto f) => _fotoGrande = f;
+
+    private async Task AbrirAccion(AccionSolicitud a)
+    {
+        _errorAccion = null; _texto1 = _texto2 = ""; _fotos = []; _resultado = ResultadoEvaluacion.Cumple; _proveedorId = null;
+        _fecha = a == AccionSolicitud.RegistrarEnvio ? DateOnly.FromDateTime(DateTime.Today) : DateOnly.FromDateTime(DateTime.Today.AddDays(7));
+        if (a == AccionSolicitud.RegistrarEnvio) _texto1 = "DHL";
+        _accion = a;
+        if (a == AccionSolicitud.Asignar && _proveedores is null)
+        {
+            try { _proveedores = await Api.GetAsync<List<ProveedorDto>>("api/proveedores?activo=true"); }
+            catch (ApiException e) { _errorAccion = e.Message; _proveedores = []; }
+        }
+    }
+
+    private void Cerrar(bool abierto) { if (!abierto && !_ocupado) _accion = null; }
+
+    private void ElegirFotos(InputFileChangeEventArgs e)
+    {
+        _errorAccion = null;
+        _fotos = e.FileCount > Solicitud.MaxFotosPorEvaluacion ? [] : e.GetMultipleFiles(Solicitud.MaxFotosPorEvaluacion).ToList();
+        if (e.FileCount > Solicitud.MaxFotosPorEvaluacion) _errorAccion = $"Seleccione como máximo {Solicitud.MaxFotosPorEvaluacion} fotos.";
+        else if (_fotos.FirstOrDefault(f => f.Size > SolicitudesService.MaxBytesFoto) is { } grande)
+        {
+            _errorAccion = $"'{grande.Name}' pesa más de 5 MB."; _fotos = [];
+        }
+    }
+
+    private async Task Ejecutar()
+    {
+        if (_accion is not { } a) return;
+        _ocupado = true; _errorAccion = null;
+        try
+        {
+            var url = $"api/solicitudes/{Id}";
+            string mensaje;
+            switch (a)
+            {
+                case AccionSolicitud.Asignar:
+                    await Api.PostAsync($"{url}/asignar", new AsignarRequest(_proveedorId ?? 0)); mensaje = "Proveedor asignado."; break;
+                case AccionSolicitud.Aceptar:
+                    await Api.PostAsync($"{url}/aceptar", new AceptarRequest(_fecha)); mensaje = "Compromiso registrado."; break;
+                case AccionSolicitud.RegistrarEnvio:
+                    await Api.PostAsync($"{url}/envio", new EnvioRequest(_fecha, _texto1, _texto2)); mensaje = "Envío registrado."; break;
+                case AccionSolicitud.Evaluar:
+                    if (_fotos.Count == 0) { _errorAccion = "Adjunte al menos una foto de la muestra."; return; }
+                    using (var form = new MultipartFormDataContent())
+                    {
+                        form.Add(new StringContent(_resultado.ToString()), "resultado");
+                        form.Add(new StringContent(_texto1), "comentarios");
+                        foreach (var f in _fotos)
+                        {
+                            var contenido = new StreamContent(f.OpenReadStream(SolicitudesService.MaxBytesFoto));
+                            contenido.Headers.ContentType = new(f.ContentType);
+                            form.Add(contenido, "fotos", f.Name);
+                        }
+                        await Api.PostFormAsync($"{url}/evaluacion", form);
+                    }
+                    mensaje = "Evaluación registrada."; break;
+                case AccionSolicitud.Aprobar:
+                    await Api.PostAsync($"{url}/aprobar", new DecisionRequest(_texto1)); mensaje = "Muestra aprobada."; break;
+                default:
+                    await Api.PostAsync($"{url}/rechazar", new DecisionRequest(_texto1)); mensaje = "Muestra rechazada; vuelve al proveedor."; break;
+            }
+            _ocupado = false;
+            _accion = null;
+            await CargarAsync(); // primero los datos nuevos, luego el aviso: nunca se ve el estado viejo con el mensaje de éxito
+            Avisos.Exito(mensaje);
+        }
+        catch (ApiException e) { _errorAccion = e.Message; }
+        finally { _ocupado = false; }
+    }
+
+    private string Espera() => _s!.Estado switch
+    {
+        EstadoSolicitud.Solicitado => "Pendiente de que el coordinador asigne un proveedor.",
+        EstadoSolicitud.Asignado => "Pendiente de que el proveedor acepte y comprometa una fecha.",
+        EstadoSolicitud.EnProgreso when _s.FechaCompromiso is null => "Muestra rechazada: pendiente de que el proveedor comprometa una nueva fecha.",
+        EstadoSolicitud.EnProgreso => $"El proveedor se comprometió a enviar el {Textos.Fecha(_s.FechaCompromiso)}.",
+        EstadoSolicitud.Enviado => "Muestra enviada: pendiente de evaluación del coordinador.",
+        EstadoSolicitud.EnEvaluacion => "Evaluada: pendiente de la decisión de quien hizo la solicitud.",
+        _ => "",
+    };
+
+    private static string IconoAccion(AccionSolicitud a) => a switch
+    {
+        AccionSolicitud.Asignar => "usuario-check",
+        AccionSolicitud.Aceptar => "calendario",
+        AccionSolicitud.RegistrarEnvio => "camion",
+        AccionSolicitud.Evaluar => "camara",
+        AccionSolicitud.Aprobar => "check-circulo",
+        _ => "deshacer",
+    };
+}

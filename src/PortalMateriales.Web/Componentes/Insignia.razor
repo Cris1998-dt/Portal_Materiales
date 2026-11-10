@@ -1,0 +1,8 @@
+<span class="insignia insignia-@Variante">@if (IconoNombre is not null) {<Icono Nombre="@IconoNombre" Tamano="14" />}@ChildContent</span>
+
+@code {
+    /// <summary>neutro | info | exito | advertencia | error</summary>
+    [Parameter] public string Variante { get; set; } = "neutro";
+    [Parameter] public string? IconoNombre { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

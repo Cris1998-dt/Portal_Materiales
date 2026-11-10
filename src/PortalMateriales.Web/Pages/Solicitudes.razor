@@ -1,0 +1,207 @@
+@page "/"
+@page "/solicitudes"
+@inject Api Api
+@inject Sesion Sesion
+@inject Avisos Avisos
+@inject NavigationManager Nav
+
+<PageTitle>Solicitudes · Portal de Materiales</PageTitle>
+
+<EncabezadoPagina Titulo="Solicitudes"
+                  Descripcion="@(Sesion.Es(Rol.Proveedor) ? "Solicitudes asignadas a su empresa." : "Desarrollo de materiales desde la solicitud hasta la aprobación de la muestra.")">
+    <Acciones>
+        @if (Sesion.Es(Rol.Solicitante))
+        {
+            <button type="button" class="boton boton-primario" @onclick="AbrirNueva"><Icono Nombre="mas" /> Nueva solicitud</button>
+        }
+    </Acciones>
+</EncabezadoPagina>
+
+<div class="filtros">
+    <div class="chips" role="group" aria-label="Filtrar por estado">
+        <button type="button" class="chip" aria-pressed="@(Estado is null && !Vencidas)" @onclick="() => Filtrar(null, false)">Todas</button>
+        @foreach (var e in Enum.GetValues<EstadoSolicitud>())
+        {
+            <button type="button" class="chip" aria-pressed="@(Estado == e)" @onclick="() => Filtrar(e, false)">@Textos.De(e)</button>
+        }
+        <button type="button" class="chip" aria-pressed="@Vencidas" @onclick="() => Filtrar(null, true)">Vencidas</button>
+    </div>
+    <label class="buscador">
+        <span class="solo-lector">Buscar</span>
+        <Icono Nombre="lupa" Tamano="16" />
+        <input type="search" placeholder="Buscar por número, material o proveedor" @bind="_busqueda" @bind:event="oninput" />
+    </label>
+</div>
+
+<MensajeError Texto="@_error" />
+
+@if (_lista is null)
+{
+    <Cargando />
+}
+else if (Filtradas.Count == 0)
+{
+    <div class="panel vacio">No hay solicitudes que coincidan con el filtro.</div>
+}
+else
+{
+    <p class="solo-lector" aria-live="polite">@Filtradas.Count solicitudes</p>
+    <div class="tabla-contenedor solo-escritorio">
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th scope="col">N.º</th>
+                    <th scope="col">Material</th>
+                    <th scope="col">Prioridad</th>
+                    <th scope="col">Estado</th>
+                    <th scope="col">Proveedor</th>
+                    <th scope="col">Objetivo</th>
+                    <th scope="col">Compromiso</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Filtradas)
+                {
+                    <tr class="clic" @onclick="() => Abrir(s.Id)">
+                        <td class="mono"><a href="solicitudes/@s.Id" @onclick:stopPropagation>#@s.Id</a></td>
+                        <td>@s.Material<span class="secundario">@s.Tipo</span></td>
+                        <td><Insignia Variante="@VariantePrioridad(s.Prioridad)">@s.Prioridad</Insignia></td>
+                        <td>
+                            <div class="insignias">
+                                <InsigniaEstado Estado="s.Estado" />
+                                @if (s.Vencida) { <Insignia Variante="error" IconoNombre="alerta">Vencida</Insignia> }
+                            </div>
+                        </td>
+                        <td>@(s.Proveedor ?? "—")</td>
+                        <td class="mono">@Textos.Fecha(s.FechaObjetivo)</td>
+                        <td class="mono">@Textos.Fecha(s.FechaCompromiso)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="tarjetas">
+        @foreach (var s in Filtradas)
+        {
+            <a class="tarjeta" href="solicitudes/@s.Id">
+                <div class="tarjeta-fila">
+                    <span class="tarjeta-titulo">@s.Material</span>
+                    <span class="mono texto-suave">#@s.Id</span>
+                </div>
+                <div class="insignias">
+                    <InsigniaEstado Estado="s.Estado" />
+                    @if (s.Vencida) { <Insignia Variante="error" IconoNombre="alerta">Vencida</Insignia> }
+                    <Insignia Variante="@VariantePrioridad(s.Prioridad)">Prioridad @s.Prioridad.ToString().ToLowerInvariant()</Insignia>
+                </div>
+                <div class="tarjeta-meta">
+                    <span>@s.Tipo</span>
+                    <span>@(s.Proveedor ?? "Sin proveedor")</span>
+                    <span>Objetivo @Textos.Fecha(s.FechaObjetivo)</span>
+                    @if (s.FechaCompromiso is not null) { <span>Compromiso @Textos.Fecha(s.FechaCompromiso)</span> }
+                </div>
+            </a>
+        }
+    </div>
+}
+
+<Dialogo @bind-Abierto="_nueva" Titulo="Nueva solicitud">
+    <ChildContent>
+        <MensajeError Texto="@_errorNueva" />
+        <form id="f-nueva" class="campos dos" @onsubmit="Crear">
+            <div class="campo ancho-completo">
+                <label for="n-material" class="requerido">Material</label>
+                <input id="n-material" @bind="_material" required maxlength="150" placeholder="Ej. Jersey algodón orgánico 180 g" />
+            </div>
+            <div class="campo">
+                <label for="n-tipo" class="requerido">Tipo</label>
+                <select id="n-tipo" @bind="_tipo">
+                    @foreach (var t in Enum.GetValues<TipoMaterial>()) { <option value="@t">@t</option> }
+                </select>
+            </div>
+            <div class="campo">
+                <label for="n-prioridad" class="requerido">Prioridad</label>
+                <select id="n-prioridad" @bind="_prioridad">
+                    @foreach (var p in Enum.GetValues<Prioridad>()) { <option value="@p">@p</option> }
+                </select>
+            </div>
+            <div class="campo ancho-completo">
+                <label for="n-fecha" class="requerido">Fecha objetivo</label>
+                <input id="n-fecha" type="date" @bind="_fechaObjetivo" required min="@Hoy" />
+            </div>
+            <div class="campo ancho-completo">
+                <label for="n-desc" class="requerido">Descripción</label>
+                <textarea id="n-desc" @bind="_descripcion" required maxlength="2000" placeholder="Composición, color, gramaje, uso…"></textarea>
+            </div>
+        </form>
+    </ChildContent>
+    <Pie>
+        <button type="button" class="boton boton-secundario" @onclick="() => _nueva = false">Cancelar</button>
+        <BotonGuardar Formulario="f-nueva" Ocupado="_guardando" Texto="Crear solicitud" />
+    </Pie>
+</Dialogo>
+
+@code {
+    [SupplyParameterFromQuery(Name = "estado")] public string? EstadoQuery { get; set; }
+    [SupplyParameterFromQuery(Name = "vencidas")] public bool Vencidas { get; set; }
+
+    private EstadoSolicitud? Estado => Enum.TryParse<EstadoSolicitud>(EstadoQuery, out var e) ? e : null;
+
+    private List<SolicitudResumenDto>? _lista;
+    private string? _error, _errorNueva;
+    private string _busqueda = "";
+
+    private bool _nueva, _guardando;
+    private string _material = "", _descripcion = "";
+    private TipoMaterial _tipo = TipoMaterial.Tela;
+    private Prioridad _prioridad = Prioridad.Media;
+    private DateOnly _fechaObjetivo;
+    private static string Hoy => DateTime.Now.ToString("yyyy-MM-dd");
+
+    private List<SolicitudResumenDto> Filtradas =>
+        (_lista ?? []).Where(s => !Vencidas || s.Vencida)
+            .Where(s => _busqueda.Length == 0
+                || s.Id.ToString() == _busqueda.TrimStart('#')
+                || s.Material.Contains(_busqueda, StringComparison.OrdinalIgnoreCase)
+                || (s.Proveedor?.Contains(_busqueda, StringComparison.OrdinalIgnoreCase) ?? false))
+            .ToList();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _lista = null; _error = null;
+        try { _lista = (await Api.GetAsync<List<SolicitudResumenDto>>($"api/solicitudes{(Estado is { } e ? $"?estado={e}" : "")}")); }
+        catch (ApiException ex) { _error = ex.Message; _lista = []; }
+    }
+
+    private void Filtrar(EstadoSolicitud? estado, bool vencidas) =>
+        Nav.NavigateTo(Nav.GetUriWithQueryParameters("solicitudes", new Dictionary<string, object?>
+        {
+            ["estado"] = estado?.ToString(), ["vencidas"] = vencidas ? true : null,
+        }));
+
+    private void Abrir(int id) => Nav.NavigateTo($"solicitudes/{id}");
+
+    private static string VariantePrioridad(Prioridad p) => p switch { Prioridad.Alta => "error", Prioridad.Media => "advertencia", _ => "neutro" };
+
+    private void AbrirNueva()
+    {
+        _material = _descripcion = ""; _tipo = TipoMaterial.Tela; _prioridad = Prioridad.Media;
+        _fechaObjetivo = DateOnly.FromDateTime(DateTime.Today.AddDays(30)); _errorNueva = null; _nueva = true;
+    }
+
+    private async Task Crear()
+    {
+        _guardando = true; _errorNueva = null;
+        try
+        {
+            var r = await Api.PostAsync<Creada>("api/solicitudes", new CrearSolicitudRequest(_material, _tipo, _descripcion, _fechaObjetivo, _prioridad));
+            _nueva = false;
+            Avisos.Exito($"Solicitud #{r.Id} creada.");
+            Nav.NavigateTo($"solicitudes/{r.Id}");
+        }
+        catch (ApiException e) { _errorNueva = e.Message; }
+        finally { _guardando = false; }
+    }
+
+    private record Creada(int Id);
+}

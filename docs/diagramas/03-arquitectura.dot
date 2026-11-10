@@ -1,0 +1,18 @@
+// Capas (Clean Architecture). Regenerar: dot -Tpng -Gdpi=200 03-arquitectura.dot -o 03-arquitectura.png
+digraph capas {
+  rankdir=TB; bgcolor="white"; pad=0.3; nodesep=0.5; ranksep=0.5;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, margin="0.2,0.1"];
+  edge [color="#525252", arrowsize=0.8, fontname="Helvetica", fontsize=9];
+
+  web [label=<<b>Web</b><br/><font point-size="9">Blazor WebAssembly · páginas, componentes,<br/>cliente de la API, sesión JWT</font>>, fillcolor="#f4f4f4", color="#8d8d8d"];
+  api [label=<<b>Api</b><br/><font point-size="9">Minimal APIs · JWT · Swagger · ProblemDetails<br/>sirve la interfaz web</font>>, fillcolor="#f4f4f4", color="#8d8d8d"];
+  infra [label=<<b>Infrastructure</b><br/><font point-size="9">EF Core + SQL Server · migraciones · Azure Blob<br/>PBKDF2 · datos de ejemplo</font>>, fillcolor="#fcf4d6", color="#b28600"];
+  app [label=<<b>Application</b><br/><font point-size="9">Casos de uso (SolicitudesService, ProveedoresService,<br/>AuthService) · DTOs · puertos (interfaces)</font>>, fillcolor="#edf5ff", color="#0f62fe"];
+  dom [label=<<b>Domain</b><br/><font point-size="9">Agregados Solicitud y Proveedor · reglas del flujo<br/>Actor · excepciones · sin dependencias</font>>, fillcolor="#defbe6", color="#24a148", penwidth=2];
+
+  api -> infra; api -> web [label=" publica"];
+  infra -> app [label=" implementa puertos"];
+  web -> app [label=" usa DTOs y enums"];
+  app -> dom;
+  { rank=same; api; web; }
+}

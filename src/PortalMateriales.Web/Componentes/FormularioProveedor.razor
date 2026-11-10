@@ -1,0 +1,64 @@
+@* Campos del proveedor, compartidos por "nuevo" y "editar". *@
+<form id="@Id" class="campos dos" @onsubmit="OnSubmit">
+    <div class="campo ancho-completo">
+        <label for="p-nombre" class="requerido">Nombre</label>
+        <input id="p-nombre" @bind="Datos.Nombre" required maxlength="150" />
+    </div>
+    <fieldset class="campo ancho-completo">
+        <legend class="requerido">Tipo</legend>
+        <div class="opciones">
+            @foreach (var t in Enum.GetValues<TipoProveedor>())
+            {
+                <label class="opcion"><input type="radio" name="tipo" checked="@(Datos.Tipo == t)" @onchange="() => Datos.Tipo = t" /> @t</label>
+            }
+        </div>
+    </fieldset>
+    <div class="campo">
+        <label for="p-rtn" class="@(Datos.Tipo == TipoProveedor.Nacional ? "requerido" : "")">RTN</label>
+        <input id="p-rtn" @bind="Datos.Rtn" required="@(Datos.Tipo == TipoProveedor.Nacional)" inputmode="numeric" maxlength="20" placeholder="0801-1999-123456" />
+        <span class="ayuda">14 dígitos. @(Datos.Tipo == TipoProveedor.Nacional ? "Obligatorio para nacionales." : "Opcional para internacionales.")</span>
+    </div>
+    <div class="campo">
+        <label for="p-correo" class="requerido">Correo</label>
+        <input id="p-correo" type="email" @bind="Datos.Correo" required maxlength="150" autocapitalize="none" />
+    </div>
+    <div class="campo">
+        <label for="p-moneda" class="requerido">Moneda</label>
+        <input id="p-moneda" @bind="Datos.Moneda" required maxlength="3" list="monedas" autocapitalize="characters" />
+        <datalist id="monedas">@foreach (var m in Textos.Monedas) { <option value="@m.Codigo">@m.Nombre</option> }</datalist>
+        <span class="ayuda">Código ISO 4217 (HNL, USD, EUR…)</span>
+    </div>
+    <div class="campo">
+        <label for="p-idioma" class="requerido">Idioma</label>
+        <input id="p-idioma" @bind="Datos.Idioma" required maxlength="2" list="idiomas" autocapitalize="none" />
+        <datalist id="idiomas">@foreach (var i in Textos.Idiomas) { <option value="@i.Codigo">@i.Nombre</option> }</datalist>
+        <span class="ayuda">Código ISO 639-1 (es, en, zh…)</span>
+    </div>
+    <div class="campo ancho-completo">
+        <label for="p-dir" class="requerido">Dirección</label>
+        <textarea id="p-dir" @bind="Datos.Direccion" required maxlength="300" rows="2"></textarea>
+    </div>
+</form>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter, EditorRequired] public DatosProveedor Datos { get; set; } = new();
+    [Parameter] public EventCallback OnSubmit { get; set; }
+
+    public class DatosProveedor
+    {
+        public string Nombre { get; set; } = "";
+        public TipoProveedor Tipo { get; set; } = TipoProveedor.Nacional;
+        public string? Rtn { get; set; }
+        public string Moneda { get; set; } = "HNL";
+        public string Idioma { get; set; } = "es";
+        public string Correo { get; set; } = "";
+        public string Direccion { get; set; } = "";
+
+        public ProveedorRequest ComoRequest() => new(Nombre, Tipo, Rtn, Moneda, Idioma, Correo, Direccion);
+        public static DatosProveedor De(ProveedorDto p) => new()
+        {
+            Nombre = p.Nombre, Tipo = p.Tipo, Rtn = p.Rtn, Moneda = p.Moneda, Idioma = p.Idioma, Correo = p.Correo, Direccion = p.Direccion,
+        };
+    }
+}

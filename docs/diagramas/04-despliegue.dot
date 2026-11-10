@@ -1,0 +1,17 @@
+// Despliegue en Azure (capas gratuitas). Regenerar: dot -Tpng -Gdpi=200 04-despliegue.dot -o 04-despliegue.png
+digraph despliegue {
+  rankdir=TB; bgcolor="white"; pad=0.2; nodesep=0.5; ranksep=0.45;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=12, fillcolor="white", color="#525252", margin="0.18,0.1"];
+  edge [fontname="Helvetica", fontsize=10, color="#525252", arrowsize=0.8];
+
+  usuarios [label=<<b>Usuarios</b><br/><font point-size="10">navegador en celular, tablet o escritorio · Swagger</font>>, fillcolor="#f4f4f4"];
+  subgraph cluster_azure {
+    label="Azure · rg-portal-materiales · West US 3"; fontname="Helvetica-Bold"; fontsize=12; style="rounded"; color="#0f62fe";
+    app [label=<<b>App Service F1 (Linux)</b><br/><font point-size="10">.NET 10 · API + interfaz Blazor<br/>HTTPS obligatorio · TLS 1.2</font>>, fillcolor="#edf5ff", color="#0f62fe"];
+    sql [label=<<b>Azure SQL Database</b><br/><font point-size="10">serverless · oferta gratuita<br/>pausa automática</font>>, shape=cylinder, fillcolor="#fcf4d6", color="#b28600"];
+    blob [label=<<b>Blob Storage</b><br/><font point-size="10">contenedor privado<br/>fotos-muestras</font>>, shape=folder, fillcolor="#defbe6", color="#24a148"];
+  }
+  usuarios -> app [label="  HTTPS · JWT Bearer"];
+  app -> sql [label="  EF Core (reintentos)"];
+  app -> blob [label="  SDK Azure Storage"];
+}

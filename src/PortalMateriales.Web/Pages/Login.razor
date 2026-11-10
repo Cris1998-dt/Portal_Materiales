@@ -1,0 +1,95 @@
+@page "/login"
+@layout VacioLayout
+@inject Api Api
+@inject Sesion Sesion
+@inject NavigationManager Nav
+
+<PageTitle>Iniciar sesión · Portal de Materiales</PageTitle>
+
+<div class="login">
+    <div class="login-caja">
+        <div class="login-marca">
+            <Icono Nombre="paquete" Tamano="36" />
+            <div>
+                <h1>Portal de Materiales</h1>
+                <p class="texto-suave">Seguimiento de desarrollo de materiales</p>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-cuerpo">
+                <MensajeError Texto="@_error" />
+                <form id="f-login" class="campos" @onsubmit="Entrar">
+                    <div class="campo">
+                        <label for="usuario" class="requerido">Usuario</label>
+                        <input id="usuario" @bind="_usuario" required autocomplete="username" autocapitalize="none" spellcheck="false" />
+                    </div>
+                    <div class="campo">
+                        <label for="clave" class="requerido">Contraseña</label>
+                        <input id="clave" type="password" @bind="_clave" required autocomplete="current-password" />
+                    </div>
+                    <BotonGuardar Formulario="f-login" Ocupado="_ocupado" Texto="Iniciar sesión" />
+                </form>
+            </div>
+        </div>
+
+        <section class="pila" aria-labelledby="demo-titulo">
+            <div>
+                <h2 id="demo-titulo">Usuarios de ejemplo</h2>
+                <p class="texto-suave">Contraseña de todos: <span class="mono">Demo123!</span>. Toque uno para entrar.</p>
+            </div>
+            <div class="demo">
+                @foreach (var (u, rol) in Demo)
+                {
+                    <button type="button" class="boton boton-secundario" disabled="@_ocupado" @onclick="() => EntrarComo(u)">
+                        <span>@u</span><small>@rol</small>
+                    </button>
+                }
+            </div>
+            <p class="texto-suave">¿Prefiere probar la API directamente? <a href="swagger" target="_self">Abrir Swagger</a></p>
+        </section>
+    </div>
+</div>
+
+@code {
+    private static readonly (string Usuario, string Rol)[] Demo =
+    [
+        ("ana", "Solicitante"), ("luis", "Solicitante"), ("carla", "Coordinador"),
+        ("valle", "Proveedor"), ("mallas", "Proveedor"), ("etiquetas", "Proveedor"), ("hilos", "Proveedor"),
+    ];
+
+    private string _usuario = "", _clave = "";
+    private string? _error;
+    private bool _ocupado;
+
+    protected override void OnInitialized()
+    {
+        if (Sesion.Activa) Nav.NavigateTo("solicitudes", replace: true);
+    }
+
+    private Task EntrarComo(string usuario)
+    {
+        _usuario = usuario;
+        _clave = "Demo123!";
+        return Entrar();
+    }
+
+    private async Task Entrar()
+    {
+        _ocupado = true; _error = null;
+        try
+        {
+            var r = await Api.PostAsync<RespuestaLogin>("api/auth/login", new LoginRequest(_usuario, _clave));
+            await Sesion.IniciarAsync(r.Token);
+            Nav.NavigateTo("solicitudes", replace: true);
+        }
+        catch (ApiException e)
+        {
+            // La primera petición tras un rato sin uso puede tardar: la base gratuita se reanuda.
+            _error = e.Message;
+        }
+        finally { _ocupado = false; }
+    }
+
+    private record RespuestaLogin(string Token);
+}

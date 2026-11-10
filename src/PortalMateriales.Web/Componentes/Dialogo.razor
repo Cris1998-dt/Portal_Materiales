@@ -1,0 +1,48 @@
+@* Diálogo modal accesible: foco al abrir, Escape y clic fuera cierran, título ligado con aria-labelledby. *@
+@if (Abierto)
+{
+    <div class="dialogo-fondo" @onclick="Cerrar">
+        <div class="dialogo @(Ancho ? "dialogo-ancho" : "")" role="dialog" aria-modal="true" aria-labelledby="@_idTitulo"
+             tabindex="-1" @ref="_panel" @onclick:stopPropagation @onkeydown="Tecla">
+            <header class="dialogo-encabezado">
+                <h2 id="@_idTitulo">@Titulo</h2>
+                <button type="button" class="boton-icono" aria-label="Cerrar" @onclick="Cerrar"><Icono Nombre="x" /></button>
+            </header>
+            <div class="dialogo-cuerpo">@ChildContent</div>
+            @if (Pie is not null)
+            {
+                <footer class="dialogo-pie">@Pie</footer>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Abierto { get; set; }
+    [Parameter] public EventCallback<bool> AbiertoChanged { get; set; }
+    [Parameter, EditorRequired] public string Titulo { get; set; } = "";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Pie { get; set; }
+    [Parameter] public bool Ancho { get; set; }
+
+    private readonly string _idTitulo = $"dlg-{Guid.NewGuid():N}";
+    private ElementReference _panel;
+    private bool _enfocar, _estabaAbierto;
+
+    // Solo al abrir: si se enfocara en cada render, el foco saltaría fuera del campo que el usuario está llenando.
+    protected override void OnParametersSet()
+    {
+        if (Abierto && !_estabaAbierto) _enfocar = true;
+        _estabaAbierto = Abierto;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!_enfocar || !Abierto) return;
+        _enfocar = false;
+        await _panel.FocusAsync();
+    }
+
+    private Task Tecla(KeyboardEventArgs e) => e.Key == "Escape" ? Cerrar() : Task.CompletedTask;
+    private Task Cerrar() => AbiertoChanged.InvokeAsync(false);
+}

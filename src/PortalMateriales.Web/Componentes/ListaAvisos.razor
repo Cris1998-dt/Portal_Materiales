@@ -1,0 +1,19 @@
+@implements IDisposable
+@inject Avisos Avisos
+
+<div class="avisos" aria-live="polite" aria-atomic="false">
+    @foreach (var a in Avisos.Lista)
+    {
+        <div class="aviso @(a.EsError ? "aviso-error" : "aviso-exito")" role="@(a.EsError ? "alert" : "status")">
+            <Icono Nombre="@(a.EsError ? "alerta" : "check-circulo")" />
+            <span>@a.Texto</span>
+            <button type="button" class="boton-icono" aria-label="Cerrar aviso" @onclick="() => Avisos.Quitar(a.Id)"><Icono Nombre="x" Tamano="16" /></button>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Avisos.Cambio += Refrescar;
+    private void Refrescar() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Avisos.Cambio -= Refrescar;
+}

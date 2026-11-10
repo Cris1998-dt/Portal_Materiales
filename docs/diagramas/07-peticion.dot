@@ -1,0 +1,26 @@
+// Ciclo de una petición autenticada. Regenerar: dot -Tpng -Gdpi=200 07-peticion.dot -o 07-peticion.png
+digraph peticion {
+  rankdir=TB; bgcolor="white"; pad=0.2; nodesep=0.35; ranksep=0.3;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, fillcolor="white", color="#525252", margin="0.12,0.06", width=2.2];
+  edge [fontname="Helvetica", fontsize=9.5, color="#525252", arrowsize=0.7];
+
+  subgraph cluster_login { label="1. Inicio de sesión"; fontname="Helvetica-Bold"; fontsize=11; style="rounded"; color="#c6c6c6";
+    login [label="POST /api/auth/login\nusuario y contraseña", fillcolor="#edf5ff", color="#0f62fe"];
+    hash [label="Verificar contraseña\nPBKDF2 · 100 000 iteraciones"];
+    jwt [label="Emitir JWT de 8 h\n(usuario, nombre, rol, proveedor)"];
+    login -> hash -> jwt;
+  }
+  subgraph cluster_req { label="2. Cada petición"; fontname="Helvetica-Bold"; fontsize=11; style="rounded"; color="#c6c6c6";
+    req [label="Petición con\nAuthorization: Bearer <token>", fillcolor="#edf5ff", color="#0f62fe"];
+    val [label="Validar firma y expiración"];
+    actor [label="Armar el Actor\n(usuario, rol, proveedor)"];
+    caso [label="Caso de uso (Application)"];
+    dom [label="Reglas del dominio:\nestado, rol y propiedad", fillcolor="#defbe6", color="#24a148"];
+    resp [label="200 · 201 · 204", fillcolor="#defbe6", color="#24a148"];
+    req -> val -> actor -> caso -> dom -> resp;
+  }
+  pd [label="ProblemDetails\n400 · 401 · 403 · 404 · 409", fillcolor="#fff1f1", color="#da1e28", width=1.9];
+  jwt -> req [style=dashed, label=" el cliente guarda el token", constraint=false];
+  val -> pd [label=" 401"];
+  dom -> pd [label=" regla violada"];
+}

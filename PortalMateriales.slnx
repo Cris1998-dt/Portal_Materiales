@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PortalMateriales.Api/PortalMateriales.Api.csproj" />
+    <Project Path="src/PortalMateriales.Application/PortalMateriales.Application.csproj" />
+    <Project Path="src/PortalMateriales.Domain/PortalMateriales.Domain.csproj" />
+    <Project Path="src/PortalMateriales.Infrastructure/PortalMateriales.Infrastructure.csproj" />
+    <Project Path="src/PortalMateriales.Web/PortalMateriales.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PortalMateriales.Tests/PortalMateriales.Tests.csproj" />
+  </Folder>
+</Solution>
